@@ -7,9 +7,10 @@ project(server VERSION 0.1.0)
 #option( BUILD_TESTS    "Build unit tests."   ON )
 #option( BUILD_SSL      "Build secure socket layer support."  ON )
 
-#
+########################
 # Configuration
-#
+########################
+
 set( CMAKE_CXX_STANDARD 14 )
 
 include(CTest)
@@ -37,13 +38,12 @@ if(result)
 endif()
 
 # Prevent overriding the parent project's compiler/linker
-# settings on Windows//
-#set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)//
+# settings
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_SSL OFF CACHE BOOL "" FORCE)
 
 # Add restbed directly to our build. This defines
-# the gtest and gtest_main targets.//
+# the restbed-shared target.
 add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/restbed-src
                  ${CMAKE_CURRENT_BINARY_DIR}/restbed-build
                  EXCLUDE_FROM_ALL)
@@ -55,7 +55,6 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/restbed-src
   #include_directories("${gtest_SOURCE_DIR}/include")
 #endif()
 set(ARTIFACTS "${CMAKE_CURRENT_BINARY_DIR}/restbed-src/source")
-message("[ARTIFACTS] ${ARTIFACTS}")
 include_directories("${ARTIFACTS}")
 
 find_package (Threads)
@@ -63,5 +62,5 @@ find_package (Threads)
 # Now simply link against gtest or gtest_main as needed. Eg
 add_executable(server main.cpp)
 #target_link_libraries(example gtest_main)
-target_link_libraries(server ${CMAKE_CURRENT_BINARY_DIR}/restbed-build/librestbed.a ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(server restbed-shared ${CMAKE_THREAD_LIBS_INIT})
 add_test(NAME server_test COMMAND server)
