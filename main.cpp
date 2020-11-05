@@ -3,7 +3,7 @@
 #include <string>
 #include <memory>
 #include <cstdlib>
-
+#include <csignal>
 #include <iostream>
 
 //Project Includes
@@ -18,7 +18,6 @@
 
 //External Includes
 //#include <catch.hpp>
-#include <csignal>
 
 //System Namespaces
 using std::multimap;
