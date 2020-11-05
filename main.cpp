@@ -18,6 +18,7 @@
 
 //External Includes
 //#include <catch.hpp>
+#include <csignal>
 
 //System Namespaces
 using std::multimap;
@@ -63,13 +64,17 @@ public:
 
 	void start()
 	{
-		//_service.start(_settings);
+		_service.set_signal_handler( SIGINT, [this](const int signo) {
+			cout << "Received SIGINT signal number " << signo << '\n';
+			_service.stop();
+		    });
+
+		_service.start(_settings);
 	}
 
 	~Server()
 	{
 		cout << "Stopping server\n";
-		_service.stop();
 	}
 };
 
