@@ -57,10 +57,21 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/restbed-src
 set(ARTIFACTS "${CMAKE_CURRENT_BINARY_DIR}/restbed-src/source")
 include_directories("${ARTIFACTS}")
 
+########################
+# Configure Threads
+########################
 find_package (Threads)
+
+########################
+# Configure PostgreSQL
+########################
+find_package(PostgreSQL REQUIRED)
+include_directories({PostgreSQL_INCLUDE_DIRS
+					 PostgreSQL_INCLUDE_DIRS})
 
 # Now simply link against gtest or gtest_main as needed. Eg
 add_executable(server main.cpp)
 #target_link_libraries(example gtest_main)
-target_link_libraries(server restbed-shared ${CMAKE_THREAD_LIBS_INIT})
+
+target_link_libraries(server restbed-shared ${CMAKE_THREAD_LIBS_INIT} ${PostgreSQL_LIBRARIES})
 add_test(NAME server_test COMMAND server)
