@@ -70,7 +70,7 @@ class Server
 public:
 	Server()
 	{
-		_worker = make_shared< thread >( [&this ] ( )
+		_worker = make_shared< thread >( [=] ( )
 		{
             start( );
         } );
@@ -117,11 +117,30 @@ public:
 	}
 };
 
+
+void db() {
+   try {
+      connection C("dbname = testdb user = postgres password = cohondob \
+      hostaddr = 127.0.0.1 port = 5432");
+      if (C.is_open()) {
+         cout << "Opened database successfully: " << C.dbname() << endl;
+      } else {
+         cout << "Can't open database" << endl;
+      }
+      C.disconnect ();
+   } catch (const std::exception &e) {
+      cerr << e.what() << std::endl;
+   }
+}
+
+
 int main(const int, const char **)
 {
 	Server server;
 	
 	std::this_thread::sleep_for( seconds( 1 ) );
+	
+	db();
 	
 	server.stop();
 	return EXIT_SUCCESS;
