@@ -14,7 +14,6 @@
 
 //Project Includes
 
-
 //External Includes
 //#include <catch.hpp>
 #include <corvusoft/restbed/uri.hpp>
@@ -50,6 +49,60 @@ using namespace pqxx;
 // global
 // mutex
 
+// resource
+class FizzbuzzResource : public restbed::Resource
+{
+public:
+	FizzbuzzResource()
+	{
+		this->set_path("/fizzbuzz/");
+		this->set_method_handler("GET",
+								 std::bind(&FizzbuzzResource::GET_method_handler, this,
+										   std::placeholders::_1));
+	}
+
+	virtual ~FizzbuzzResource()
+	{
+	}
+
+	void GET_method_handler(const std::shared_ptr<restbed::Session> session)
+	{
+		const auto request = session->get_request();
+
+		// Getting the query params
+		const int32_t int1 = request->get_query_parameter("int1", 0);
+		const int32_t int2 = request->get_query_parameter("int2", 0);
+		const int32_t limit = request->get_query_parameter("limit", 0);
+		const std::string str1 = request->get_query_parameter("str1", "");
+		const std::string str2 = request->get_query_parameter("str2", "");
+		
+		if (limit == 0 /**/)
+		{
+			session->close(400, "Invalid limit supplied", {{"Connection", "close"}});
+			return;
+		}
+
+
+		// Change the value of this variable to the appropriate response before sending the response
+		int status_code = 200;
+
+		/**
+		 * Process the received information here
+		 */
+
+		if (status_code == 200)
+		{
+			session->close(200, "successful operation", {{"Connection", "close"}});
+			return;
+		}
+		if (status_code == 400)
+		{
+			session->close(400, "Invalid username/password supplied", {{"Connection", "close"}});
+			return;
+		}
+	}
+};
+
 //
 void ready_handler(Service &)
 {
@@ -70,27 +123,24 @@ class Server
 public:
 	Server()
 	{
-		_worker = make_shared< thread >( [=] ( )
-		{
-            start( );
-        } );
+		_worker = make_shared<thread>([=]() {
+			start();
+		});
 	}
 
 	void start()
 	{
 		cout << "Starting server...\n";
-		auto resource = make_shared<Resource>();
-		resource->set_path("/fizzbuzz/");
-		resource->set_method_handler("GET", get_method_handler);
+		// add resources
+		auto fizzbuzzResource = make_shared<FizzbuzzResource>();
 
 		_settings = make_shared<Settings>();
-
 		// read variable argument list
 		_settings->set_port(1984);
 		_settings->set_default_header("Connection", "close");
 
-		_service.publish(resource);
-		
+		_service.publish(fizzbuzzResource);
+
 		_service.set_ready_handler(ready_handler);
 		_service.set_signal_handler(SIGINT, [this](const int signo) {
 			fprintf(stderr, "Received SIGINT signal number '%i'.\n", signo);
@@ -103,45 +153,46 @@ public:
 
 		_service.start(_settings);
 	}
-	
+
 	void stop()
 	{
+		cout << "Stopping server\n";
 		_service.stop();
 	}
 
 	~Server()
 	{
-		cout << "Stopping server\n";
-		_worker->join( );
-		stop();
+		_worker->join();
 	}
 };
 
-
-void db() {
-   try {
-      connection C("dbname = testdb user = postgres password = cohondob \
+void db()
+{
+	try
+	{
+		connection C("dbname = testdb user = postgres password = cohondob \
       hostaddr = 127.0.0.1 port = 5432");
-      if (C.is_open()) {
-         cout << "Opened database successfully: " << C.dbname() << endl;
-      } else {
-         cout << "Can't open database" << endl;
-      }
-      C.disconnect ();
-   } catch (const std::exception &e) {
-      cerr << e.what() << std::endl;
-   }
+		if (C.is_open())
+		{
+			cout << "Opened database successfully: " << C.dbname() << endl;
+		}
+		else
+		{
+			cout << "Can't open database" << endl;
+		}
+		C.disconnect();
+	}
+	catch (const std::exception &e)
+	{
+		cerr << e.what() << std::endl;
+	}
 }
-
 
 int main(const int, const char **)
 {
 	Server server;
-	
-	std::this_thread::sleep_for( seconds( 1 ) );
-	
-	db();
-	
-	server.stop();
+
+	//db();
+	//server.stop();
 	return EXIT_SUCCESS;
 }
