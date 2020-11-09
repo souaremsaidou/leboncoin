@@ -124,6 +124,16 @@ public:
 
 	void GET_method_handler(const std::shared_ptr<restbed::Session> session)
 	{
+		const auto request = session->get_request();
+
+		// Getting the query params
+		std::multimap< std::string, std::string > query_parameters = request->get_query_parameters();
+		if(query_parameters.size())
+		{
+			session->close(400, "no query parameters allowed", {{"Connection", "close"}});
+			return;
+		}
+		
 		{
 			std::lock_guard<std::mutex> lck(mtx);
 			// typedef
@@ -186,12 +196,58 @@ public:
 		const int int1 = request->get_query_parameter("int1", 0);
 		const int int2 = request->get_query_parameter("int2", 0);
 		const int limit = request->get_query_parameter("limit", 0);
-		const std::string str1 = request->get_query_parameter("str1", "");
-		const std::string str2 = request->get_query_parameter("str2", "");
+		const std::string str1 = request->get_query_parameter("str1");
+		const std::string str2 = request->get_query_parameter("str2");
+		
+		/**
+		 * Process the received information here
+		 */
 
-		// compute fizzbuzz here
-		std::vector<string> fizzbuzz(18, "1");
+		// Check query parameters validity
+		if (f(int1, 0) || int1 == 0)
+		{
+			session->close(400, "Invalid query parameter int1 supplied, int1 must be greater than zero", {{"Connection", "close"}});
+			return;
+		}
 
+		if (f(int2, 0) || int2 == 0)
+		{
+			session->close(400, "Invalid query parameter int2 supplied, int2 must be greater than zero", {{"Connection", "close"}});
+			return;
+		}
+
+		if (f(int2, int1))
+		{
+			session->close(400, "Invalid query parameter int2 supplied, int2 must be greather than int1", {{"Connection", "close"}});
+			return;
+		}
+
+		if (f(limit, 0) || limit == 0)
+		{
+			session->close(400, "Invalid query parameter limit supplied, limit must be greater than zero", {{"Connection", "close"}});
+			return;
+		}
+
+		if (f(limit, int2))
+		{
+			session->close(400, "Invalid query parameter limit supplied, limit must be greater than int2", {{"Connection", "close"}});
+			return;
+		}
+		
+		
+		if(str1.empty())
+		{
+			session->close(400, "Invalid query parameter str1 supplied, str1 must not be empty", {{"Connection", "close"}});
+			return;
+		}
+		
+		if(str2.empty())
+		{
+			session->close(400, "Invalid query parameter str2 supplied, str2 must not be empty", {{"Connection", "close"}});
+			return;
+		}
+		
+		// register hits
 		{
 			std::lock_guard<std::mutex> lck(mtx);
 			Parameters p{int1, int2, limit, str1, str2};
@@ -200,7 +256,12 @@ public:
 				parameters[p].first++;
 			}
 			else
+			{
+				// compute fizzbuzz here
+				vector<string> fizzbuzz(18, "1");
+				
 				parameters[p] = std::make_pair(1, fizzbuzz);
+			}
 
 			cout << "hits: " << parameters[p].first << endl;
 			cout << "Returns a list of strings with numbers from 1 to limit: " << parameters[p].first;
@@ -208,46 +269,9 @@ public:
 				cout << ' ' << *it;
 			cout << endl;
 		}
-
-		// check param type
-
-		// check param is in valid range
-		if (f(int1, 0) || int1 == 0)
-		{
-			session->close(400, "Invalid int1 supplied, int1 must be greater than zero", {{"Connection", "close"}});
-			return;
-		}
-
-		if (f(int2, 0) || int2 == 0)
-		{
-			session->close(400, "Invalid int2 supplied, int2 must be greater than zero", {{"Connection", "close"}});
-			return;
-		}
-
-		if (f(int2, int1))
-		{
-			session->close(400, "Invalid parameters int2 supplied, int2 must be greather than int1", {{"Connection", "close"}});
-			return;
-		}
-
-		if (f(limit, 0) || limit == 0)
-		{
-			session->close(400, "Invalid limit supplied, limit must be greater than zero", {{"Connection", "close"}});
-			return;
-		}
-
-		if (f(limit, int2))
-		{
-			session->close(400, "Invalid parameters supplied", {{"Connection", "close"}});
-			return;
-		} // and more cmp
-
+		
 		// Change the value of this variable to the appropriate response before sending the response
 		int status_code = 200;
-
-		/**
-		 * Process the received information here
-		 */
 
 		if (status_code == 200)
 		{
@@ -266,11 +290,6 @@ public:
 void ready_handler(Service &)
 {
 	fprintf(stderr, "Service PID is '%i'.\n", getpid());
-}
-
-void get_method_handler(const shared_ptr<Session> session)
-{
-	session->close(OK, "Hello, World!", {{"Content-Length", "13"}});
 }
 
 class Server
