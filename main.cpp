@@ -124,23 +124,25 @@ public:
 
 	void GET_method_handler(const std::shared_ptr<restbed::Session> session)
 	{
+		// typedef
+		using query_parameters_type = std::multimap<std::string, std::string>;
+		using value_type = std::pair<int, std::vector<string>>;
+		using result_type = std::unordered_map<Parameters, value_type>::iterator;
+		
 		const auto request = session->get_request();
-
+		
 		// Getting the query params
-		std::multimap< std::string, std::string > query_parameters = request->get_query_parameters();
-		if(query_parameters.size())
+		query_parameters_type query_parameters = request->get_query_parameters();
+		if (query_parameters.size())
 		{
 			session->close(400, "no query parameters allowed", {{"Connection", "close"}});
 			return;
 		}
-		
+
+		result_type result;
 		{
 			std::lock_guard<std::mutex> lck(mtx);
-			// typedef
-			using value_type = std::pair<int, std::vector<string>>;
-			using result_type = std::unordered_map<Parameters, value_type>::iterator;
-			// read result
-			result_type result = std::max_element(parameters.begin(), parameters.end(),
+			result = std::max_element(parameters.begin(), parameters.end(),
 												  [](const std::pair<Parameters, value_type> &a, const std::pair<Parameters, value_type> &b) -> bool {
 													  return a.second.second < b.second.second;
 												  });
@@ -150,26 +152,13 @@ public:
 			{
 				// print maximum hits
 				cout << "the most frequent request has been " << result->first << " -- hits: " << result->second.first << endl;
+				session->close(200, "successful operation", {{"Connection", "close"}, { "Content-Type", "application/json" }});
 			}
-		}
-
-		// Change the value of this variable to the appropriate response before sending the response
-		int status_code = 200;
-
-		/**
-		 * Process the received information here
-		 */
-
-		if (status_code == 200)
-		{
-			session->close(200, "successful operation", {{"Connection", "close"}});
-			return;
-		}
-		if (status_code == 400)
-		{
-			session->close(400, "Invalid username/password supplied", {{"Connection", "close"}});
-			return;
-		}
+			else
+			{
+				session->close(200, "successful operation empty result", {{"Connection", "close"}, { "Content-Type", "application/json" }});
+			}
+		}		
 	}
 };
 
@@ -198,7 +187,7 @@ public:
 		const int limit = request->get_query_parameter("limit", 0);
 		const std::string str1 = request->get_query_parameter("str1");
 		const std::string str2 = request->get_query_parameter("str2");
-		
+
 		/**
 		 * Process the received information here
 		 */
@@ -233,33 +222,36 @@ public:
 			session->close(400, "Invalid query parameter limit supplied, limit must be greater than int2", {{"Connection", "close"}});
 			return;
 		}
-		
-		
-		if(str1.empty())
+
+		if (str1.empty())
 		{
 			session->close(400, "Invalid query parameter str1 supplied, str1 must not be empty", {{"Connection", "close"}});
 			return;
 		}
-		
-		if(str2.empty())
+
+		if (str2.empty())
 		{
 			session->close(400, "Invalid query parameter str2 supplied, str2 must not be empty", {{"Connection", "close"}});
 			return;
 		}
-		
+
 		// register hits
 		{
 			std::lock_guard<std::mutex> lck(mtx);
+			vector<string> fizzbuzz;
+			fizzbuzz.reserve(limit);
 			Parameters p{int1, int2, limit, str1, str2};
 			if (parameters.count(p) > 0) // it parameters already used then increment hits
 			{
 				parameters[p].first++;
+				fizzbuzz = parameters[p].second;
 			}
 			else
 			{
 				// compute fizzbuzz here
-				vector<string> fizzbuzz(18, "1");
-				
+				for (int i=0; i<limit; ++i) {
+					fizzbuzz.push_back("1");
+			  	}
 				parameters[p] = std::make_pair(1, fizzbuzz);
 			}
 
@@ -268,20 +260,9 @@ public:
 			for (std::vector<string>::iterator it = parameters[p].second.begin(); it != parameters[p].second.end(); ++it)
 				cout << ' ' << *it;
 			cout << endl;
-		}
-		
-		// Change the value of this variable to the appropriate response before sending the response
-		int status_code = 200;
-
-		if (status_code == 200)
-		{
-			session->close(200, "successful operation", {{"Connection", "close"}});
-			return;
-		}
-		if (status_code == 400)
-		{
-			session->close(400, "Invalid username/password supplied", {{"Connection", "close"}});
-			return;
+			
+			// return fizzbuzz as json list of string
+			session->close(200, "successful operation fizzbuzz", {{"Connection", "close"}, { "Content-Type", "application/json" }});
 		}
 	}
 };
