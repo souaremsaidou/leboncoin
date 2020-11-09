@@ -68,7 +68,6 @@ include_directories({PQXX_INCLUDE_DIRECTORIES})
 
 # Now simply link against gtest or gtest_main as needed. Eg
 add_executable(server main.cpp)
-message("-- ${PQXX_LIBRARIES}")
 
 target_link_libraries(server restbed-shared ${CMAKE_THREAD_LIBS_INIT} ${PostgreSQL_LIBRARIES} ${PQXX_LIBRARIES})
 add_test(NAME server_test COMMAND server)

@@ -1,0 +1,6 @@
+# Project Files
+build/
+
+# IDE Related
+.vscode/
+

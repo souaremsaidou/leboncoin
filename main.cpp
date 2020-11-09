@@ -58,13 +58,13 @@ struct Parameters
 {
 	int int1;
 	int int2;
-	// int limit;
+	int limit;
 	string str1;
 	string str2;
 
 	bool operator==(const Parameters &rhs) const
 	{
-		return int1 == rhs.int1 && int2 == rhs.int2 && /*limit == rhs.limit &&*/ str1 == rhs.str1 && str2 == rhs.str2;
+		return int1 == rhs.int1 && int2 == rhs.int2 && limit == rhs.limit && str1 == rhs.str1 && str2 == rhs.str2;
 	}
 };
 
@@ -78,29 +78,13 @@ struct hash<Parameters>
 		std::size_t res = 0;
 		hash_combine(res, p.int1);
 		hash_combine(res, p.int2);
+		hash_combine(res, p.limit);
 		hash_combine(res, p.str1);
 		hash_combine(res, p.str2);
 		return res;
 	}
 };
 } // namespace std
-
-template <class T>
-class MyHash;
-
-template <>
-struct MyHash<Parameters>
-{
-	std::size_t operator()(Parameters const &p) const
-	{
-		std::size_t res = 0;
-		hash_combine(res, p.int1);
-		hash_combine(res, p.int2);
-		hash_combine(res, p.str1);
-		hash_combine(res, p.str2);
-		return res;
-	}
-};
 
 std::mutex mtx;
 std::unordered_map<Parameters, int> parameters;
@@ -132,10 +116,10 @@ public:
 	{
 		{
 			std::lock_guard<std::mutex> lck(mtx);
-			//std::cout << "statistics parameters contains:";
-			//for (auto& x: parameters)
-			//	std::cout << " [" << x.first << ':' << x.second << ']';
-			//std::cout << '\n';
+			std::cout << "statistics parameters contains:";
+			for (auto& x: parameters)
+				std::cout << " [" << x.first.int1 << ':' << x.second << ']';
+			std::cout << '\n';
 			cout << "statistics\t" << ::this_thread::get_id() << "\t" << parameters.size() << endl;
 		}
 
@@ -187,9 +171,7 @@ public:
 
 		{
 			std::lock_guard<std::mutex> lck(mtx);
-			cout << "params" << int1 << "\t" << int2 << "\t" << str1 << "\t" << str2 << endl;
-			parameters.emplace(Parameters{int1, int2, str1, str2}, 0);
-			cout << "fizzbuzz\t" << ::this_thread::get_id() << "\t" << parameters.size() << endl;
+			parameters[Parameters{int1, int2, limit, str1, str2}]++;
 		}
 
 		// check param type
