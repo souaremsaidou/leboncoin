@@ -1,4 +1,5 @@
 //System Includes
+#include <algorithm>
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -6,6 +7,7 @@
 #include <iostream>
 #include <sstream>
 #include <csignal>
+#include <utility> // std::pair, std::make_pair
 #include <sys/types.h>
 #include <unistd.h>
 #include <thread> // std::thread
@@ -66,7 +68,15 @@ struct Parameters
 	{
 		return int1 == rhs.int1 && int2 == rhs.int2 && limit == rhs.limit && str1 == rhs.str1 && str2 == rhs.str2;
 	}
+
+	friend ostream &operator<<(ostream &os, const Parameters &p);
 };
+
+ostream &operator<<(ostream &os, const Parameters &p)
+{
+	os << "[int1=" << p.int1 << ",int2=" << p.int2 << ",str1=" << p.str1 << ",str2=" << p.str2 << "]";
+	return os;
+}
 
 namespace std
 {
@@ -87,7 +97,7 @@ struct hash<Parameters>
 } // namespace std
 
 std::mutex mtx;
-std::unordered_map<Parameters, int> parameters;
+std::unordered_map<Parameters, std::pair<int, std::vector<string>>> parameters;
 
 // std::less
 template <typename A, typename B, typename U = std::less<>>
@@ -116,11 +126,21 @@ public:
 	{
 		{
 			std::lock_guard<std::mutex> lck(mtx);
-			std::cout << "statistics parameters contains:";
-			for (auto& x: parameters)
-				std::cout << " [" << x.first.int1 << ':' << x.second << ']';
-			std::cout << '\n';
-			cout << "statistics\t" << ::this_thread::get_id() << "\t" << parameters.size() << endl;
+			// typedef
+			using value_type = std::pair<int, std::vector<string>>;
+			using result_type = std::unordered_map<Parameters, value_type>::iterator;
+			// read result
+			result_type result = std::max_element(parameters.begin(), parameters.end(),
+												  [](const std::pair<Parameters, value_type> &a, const std::pair<Parameters, value_type> &b) -> bool {
+													  return a.second.second < b.second.second;
+												  });
+
+			// check if iterator is valid
+			if (result != parameters.end())
+			{
+				// print maximum hits
+				cout << "the most frequent request has been " << result->first << " -- hits: " << result->second.first << endl;
+			}
 		}
 
 		// Change the value of this variable to the appropriate response before sending the response
@@ -169,9 +189,24 @@ public:
 		const std::string str1 = request->get_query_parameter("str1", "");
 		const std::string str2 = request->get_query_parameter("str2", "");
 
+		// compute fizzbuzz here
+		std::vector<string> fizzbuzz(18, "1");
+
 		{
 			std::lock_guard<std::mutex> lck(mtx);
-			parameters[Parameters{int1, int2, limit, str1, str2}]++;
+			Parameters p{int1, int2, limit, str1, str2};
+			if (parameters.count(p) > 0) // it parameters already used then increment hits
+			{
+				parameters[p].first++;
+			}
+			else
+				parameters[p] = std::make_pair(1, fizzbuzz);
+
+			cout << "hits: " << parameters[p].first << endl;
+			cout << "Returns a list of strings with numbers from 1 to limit: " << parameters[p].first;
+			for (std::vector<string>::iterator it = parameters[p].second.begin(); it != parameters[p].second.end(); ++it)
+				cout << ' ' << *it;
+			cout << endl;
 		}
 
 		// check param type
@@ -255,6 +290,7 @@ public:
 	void start()
 	{
 		cout << "Starting server...\n";
+
 		// add resources
 		auto fizzbuzzResource = make_shared<FizzbuzzResource>();
 		auto statisticsResource = make_shared<StatisticsResource>();
