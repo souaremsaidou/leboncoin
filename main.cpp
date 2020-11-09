@@ -1,17 +1,18 @@
 //System Includes
-#include <thread>
-#include <map>
+#include <unordered_map>
 #include <string>
 #include <memory>
 #include <cstdlib>
 #include <iostream>
-
+#include <sstream>
 #include <csignal>
 #include <sys/types.h>
 #include <unistd.h>
-
+#include <thread> // std::thread
+#include <mutex>  // std::mutex, std::lock_guard
+//#include <stdexcept>      // std::logic_error
 #include <chrono>
-
+#include <functional>
 //Project Includes
 
 //External Includes
@@ -46,10 +47,118 @@ using namespace std;
 using std::chrono::seconds;
 using namespace pqxx;
 
-// global
-// mutex
+template <class T>
+inline void hash_combine(std::size_t &s, const T &v)
+{
+	std::hash<T> h;
+	s ^= h(v) + 0x9e3779b9 + (s << 6) + (s >> 2);
+}
+
+struct Parameters
+{
+	int int1;
+	int int2;
+	// int limit;
+	string str1;
+	string str2;
+
+	bool operator==(const Parameters &rhs) const
+	{
+		return int1 == rhs.int1 && int2 == rhs.int2 && /*limit == rhs.limit &&*/ str1 == rhs.str1 && str2 == rhs.str2;
+	}
+};
+
+namespace std
+{
+template <>
+struct hash<Parameters>
+{
+	std::size_t operator()(const Parameters &p) const
+	{
+		std::size_t res = 0;
+		hash_combine(res, p.int1);
+		hash_combine(res, p.int2);
+		hash_combine(res, p.str1);
+		hash_combine(res, p.str2);
+		return res;
+	}
+};
+} // namespace std
+
+template <class T>
+class MyHash;
+
+template <>
+struct MyHash<Parameters>
+{
+	std::size_t operator()(Parameters const &p) const
+	{
+		std::size_t res = 0;
+		hash_combine(res, p.int1);
+		hash_combine(res, p.int2);
+		hash_combine(res, p.str1);
+		hash_combine(res, p.str2);
+		return res;
+	}
+};
+
+std::mutex mtx;
+std::unordered_map<Parameters, int> parameters;
+
+// std::less
+template <typename A, typename B, typename U = std::less<>>
+bool f(A a, B b, U u = U())
+{
+	return u(a, b);
+}
 
 // resource
+class StatisticsResource : public restbed::Resource
+{
+public:
+	StatisticsResource()
+	{
+		this->set_path("/statistics/");
+		this->set_method_handler("GET",
+								 std::bind(&StatisticsResource::GET_method_handler, this,
+										   std::placeholders::_1));
+	}
+
+	virtual ~StatisticsResource()
+	{
+	}
+
+	void GET_method_handler(const std::shared_ptr<restbed::Session> session)
+	{
+		{
+			std::lock_guard<std::mutex> lck(mtx);
+			//std::cout << "statistics parameters contains:";
+			//for (auto& x: parameters)
+			//	std::cout << " [" << x.first << ':' << x.second << ']';
+			//std::cout << '\n';
+			cout << "statistics\t" << ::this_thread::get_id() << "\t" << parameters.size() << endl;
+		}
+
+		// Change the value of this variable to the appropriate response before sending the response
+		int status_code = 200;
+
+		/**
+		 * Process the received information here
+		 */
+
+		if (status_code == 200)
+		{
+			session->close(200, "successful operation", {{"Connection", "close"}});
+			return;
+		}
+		if (status_code == 400)
+		{
+			session->close(400, "Invalid username/password supplied", {{"Connection", "close"}});
+			return;
+		}
+	}
+};
+
 class FizzbuzzResource : public restbed::Resource
 {
 public:
@@ -70,18 +179,51 @@ public:
 		const auto request = session->get_request();
 
 		// Getting the query params
-		const int32_t int1 = request->get_query_parameter("int1", 0);
-		const int32_t int2 = request->get_query_parameter("int2", 0);
-		const int32_t limit = request->get_query_parameter("limit", 0);
+		const int int1 = request->get_query_parameter("int1", 0);
+		const int int2 = request->get_query_parameter("int2", 0);
+		const int limit = request->get_query_parameter("limit", 0);
 		const std::string str1 = request->get_query_parameter("str1", "");
 		const std::string str2 = request->get_query_parameter("str2", "");
-		
-		if (limit == 0 /**/)
+
 		{
-			session->close(400, "Invalid limit supplied", {{"Connection", "close"}});
+			std::lock_guard<std::mutex> lck(mtx);
+			cout << "params" << int1 << "\t" << int2 << "\t" << str1 << "\t" << str2 << endl;
+			parameters.emplace(Parameters{int1, int2, str1, str2}, 0);
+			cout << "fizzbuzz\t" << ::this_thread::get_id() << "\t" << parameters.size() << endl;
+		}
+
+		// check param type
+
+		// check param is in valid range
+		if (f(int1, 0) || int1 == 0)
+		{
+			session->close(400, "Invalid int1 supplied, int1 must be greater than zero", {{"Connection", "close"}});
 			return;
 		}
 
+		if (f(int2, 0) || int2 == 0)
+		{
+			session->close(400, "Invalid int2 supplied, int2 must be greater than zero", {{"Connection", "close"}});
+			return;
+		}
+
+		if (f(int2, int1))
+		{
+			session->close(400, "Invalid parameters int2 supplied, int2 must be greather than int1", {{"Connection", "close"}});
+			return;
+		}
+
+		if (f(limit, 0) || limit == 0)
+		{
+			session->close(400, "Invalid limit supplied, limit must be greater than zero", {{"Connection", "close"}});
+			return;
+		}
+
+		if (f(limit, int2))
+		{
+			session->close(400, "Invalid parameters supplied", {{"Connection", "close"}});
+			return;
+		} // and more cmp
 
 		// Change the value of this variable to the appropriate response before sending the response
 		int status_code = 200;
@@ -133,13 +275,16 @@ public:
 		cout << "Starting server...\n";
 		// add resources
 		auto fizzbuzzResource = make_shared<FizzbuzzResource>();
+		auto statisticsResource = make_shared<StatisticsResource>();
 
 		_settings = make_shared<Settings>();
 		// read variable argument list
 		_settings->set_port(1984);
+		_settings->set_worker_limit(4);
 		_settings->set_default_header("Connection", "close");
 
 		_service.publish(fizzbuzzResource);
+		_service.publish(statisticsResource);
 
 		_service.set_ready_handler(ready_handler);
 		_service.set_signal_handler(SIGINT, [this](const int signo) {
