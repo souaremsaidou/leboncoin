@@ -11,10 +11,6 @@ project(server VERSION 0.1.0)
 
 set( CMAKE_CXX_STANDARD 14 )
 
-include(CTest)
-enable_testing()
-
-
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake" )
 #add_executable(server main.cpp)
 
@@ -66,8 +62,14 @@ include_directories({PostgreSQL_INCLUDE_DIRS})
 find_package(PQXX REQUIRED)
 include_directories({PQXX_INCLUDE_DIRECTORIES})
 
-# Now simply link against gtest or gtest_main as needed. Eg
-add_executable(server main.cpp fizzbuzz.hpp)
+# contains an "external" library we will link to
+include(fizzbuzz/CMakeLists.txt)
 
-target_link_libraries(server restbed-shared ${CMAKE_THREAD_LIBS_INIT} ${PostgreSQL_LIBRARIES} ${PQXX_LIBRARIES})
-add_test(NAME server_test COMMAND server)
+# Now simply link against gtest or gtest_main as needed. Eg
+add_executable(server main.cpp)
+
+target_link_libraries(server restbed-shared ${CMAKE_THREAD_LIBS_INIT} ${PostgreSQL_LIBRARIES} ${PQXX_LIBRARIES} fizzbuzz)
+
+# enable testing and define tests
+enable_testing()
+#add_subdirectory(tests)
