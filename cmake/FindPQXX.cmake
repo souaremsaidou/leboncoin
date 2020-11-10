@@ -5,7 +5,8 @@
 #   PQXX_LIBRARIES            to the MySQL client library (and any dependents required)
 # If PQXX_REQUIRED is defined, then a fatal error message will be generated if libpqxx is not found
 if ( NOT PQXX_INCLUDE_DIRECTORIES OR NOT PQXX_LIBRARIES )
-
+  set(PostgreSQL_KNOWN_VERSIONS ${PostgreSQL_ADDITIONAL_VERSIONS}
+    "13" "12" "11" "10" "9.6" "9.5" "9.4" "9.3" "9.2" "9.1" "9.0" "8.4" "8.3" "8.2" "8.1" "8.0")
   FIND_PACKAGE( PostgreSQL REQUIRED )
   if ( PostgreSQL_FOUND )
     file( TO_CMAKE_PATH "$ENV{PQXX_DIR}" _PQXX_DIR )
