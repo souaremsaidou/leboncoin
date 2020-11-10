@@ -62,14 +62,14 @@ include_directories({PostgreSQL_INCLUDE_DIRS})
 find_package(PQXX REQUIRED)
 include_directories({PQXX_INCLUDE_DIRECTORIES})
 
-# contains an "external" library we will link to
-include(fizzbuzz/CMakeLists.txt)
+include(GNUInstallDirs)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
 
-# Now simply link against gtest or gtest_main as needed. Eg
-add_executable(server main.cpp)
-
-target_link_libraries(server restbed-shared ${CMAKE_THREAD_LIBS_INIT} ${PostgreSQL_LIBRARIES} ${PQXX_LIBRARIES} fizzbuzz)
+# defines targets and sources
+add_subdirectory(src)
 
 # enable testing and define tests
 enable_testing()
-#add_subdirectory(tests)
+add_subdirectory(tests)
