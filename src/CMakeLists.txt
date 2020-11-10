@@ -11,4 +11,5 @@ target_link_libraries(server
 		${PostgreSQL_LIBRARIES} 
 		${PQXX_LIBRARIES} 
 		fizzbuzz
+		Boost::program_options
 	)

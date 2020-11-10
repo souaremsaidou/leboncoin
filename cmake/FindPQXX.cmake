@@ -5,7 +5,6 @@
 #   PQXX_LIBRARIES            to the MySQL client library (and any dependents required)
 # If PQXX_REQUIRED is defined, then a fatal error message will be generated if libpqxx is not found
 if ( NOT PQXX_INCLUDE_DIRECTORIES OR NOT PQXX_LIBRARIES )
-
   FIND_PACKAGE( PostgreSQL REQUIRED )
   if ( PostgreSQL_FOUND )
     file( TO_CMAKE_PATH "$ENV{PQXX_DIR}" _PQXX_DIR )
@@ -16,12 +15,10 @@ if ( NOT PQXX_INCLUDE_DIRECTORIES OR NOT PQXX_LIBRARIES )
         ${_PQXX_DIR}/lib
         ${_PQXX_DIR}
         ${CMAKE_INSTALL_PREFIX}/lib
-          ${CMAKE_INSTALL_PREFIX}/bin
-        
+        ${CMAKE_INSTALL_PREFIX}/bin
         /usr/local/pgsql/lib/${CMAKE_LIBRARY_ARCHITECTURE}
         /usr/local/lib/${CMAKE_LIBRARY_ARCHITECTURE}
         /usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}
-        
         /usr/local/pgsql/lib
         /usr/local/lib
         /usr/lib
@@ -42,8 +39,6 @@ if ( NOT PQXX_INCLUDE_DIRECTORIES OR NOT PQXX_LIBRARIES )
       NO_DEFAULT_PATH
     )
   endif ()
-  message("-- ${PQXX_HEADER_PATH}")
-  message("-- ${PQXX_LIBRARY}")
   if ( PQXX_HEADER_PATH AND PQXX_LIBRARY )
 
     set( PQXX_FOUND 1 CACHE INTERNAL "PQXX found" FORCE )

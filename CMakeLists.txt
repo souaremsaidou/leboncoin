@@ -12,11 +12,6 @@ project(server VERSION 0.1.0)
 set( CMAKE_CXX_STANDARD 14 )
 
 set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake" )
-#add_executable(server main.cpp)
-
-#set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-#set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-#include(CPack)
 
 # Download and unpack restbed at configure time
 configure_file(CMakeLists.txt.in restbed-download/CMakeLists.txt)
@@ -52,6 +47,12 @@ include_directories("${ARTIFACTS}")
 # Configure Threads
 ########################
 find_package (Threads)
+
+########################
+# Configure Boost
+########################
+find_package(Boost 1.58 COMPONENTS program_options REQUIRED)
+INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
 
 ########################
 # Configure PostgreSQL
