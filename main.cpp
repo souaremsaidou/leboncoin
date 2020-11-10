@@ -15,7 +15,9 @@
 //#include <stdexcept>      // std::logic_error
 #include <chrono>
 #include <functional>
+
 //Project Includes
+#include "fizzbuzz.hpp"
 
 //External Includes
 //#include <catch.hpp>
@@ -128,9 +130,9 @@ public:
 		using query_parameters_type = std::multimap<std::string, std::string>;
 		using value_type = std::pair<int, std::vector<string>>;
 		using result_type = std::unordered_map<Parameters, value_type>::iterator;
-		
+
 		const auto request = session->get_request();
-		
+
 		// Getting the query params
 		query_parameters_type query_parameters = request->get_query_parameters();
 		if (query_parameters.size())
@@ -143,22 +145,22 @@ public:
 		{
 			std::lock_guard<std::mutex> lck(mtx);
 			result = std::max_element(parameters.begin(), parameters.end(),
-												  [](const std::pair<Parameters, value_type> &a, const std::pair<Parameters, value_type> &b) -> bool {
-													  return a.second.second < b.second.second;
-												  });
+									  [](const std::pair<Parameters, value_type> &a, const std::pair<Parameters, value_type> &b) -> bool {
+										  return a.second.second < b.second.second;
+									  });
 
 			// check if iterator is valid
 			if (result != parameters.end())
 			{
 				// print maximum hits
 				cout << "the most frequent request has been " << result->first << " -- hits: " << result->second.first << endl;
-				session->close(200, "successful operation", {{"Connection", "close"}, { "Content-Type", "application/json" }});
+				session->close(200, "successful operation", {{"Connection", "close"}, {"Content-Type", "application/json"}});
 			}
 			else
 			{
-				session->close(200, "successful operation empty result", {{"Connection", "close"}, { "Content-Type", "application/json" }});
+				session->close(200, "successful operation empty result", {{"Connection", "close"}, {"Content-Type", "application/json"}});
 			}
-		}		
+		}
 	}
 };
 
@@ -235,35 +237,28 @@ public:
 			return;
 		}
 
-		// register hits
+		std::vector<std::string> values;
 		{
 			std::lock_guard<std::mutex> lck(mtx);
-			vector<string> fizzbuzz;
-			fizzbuzz.reserve(limit);
 			Parameters p{int1, int2, limit, str1, str2};
 			if (parameters.count(p) > 0) // it parameters already used then increment hits
 			{
 				parameters[p].first++;
-				fizzbuzz = parameters[p].second;
+				values = parameters[p].second;
 			}
 			else
 			{
-				// compute fizzbuzz here
-				for (int i=0; i<limit; ++i) {
-					fizzbuzz.push_back("1");
-			  	}
-				parameters[p] = std::make_pair(1, fizzbuzz);
+				parameters[p] = std::make_pair(1, fizzbuzz(int1, int2, limit, str1, str2));
 			}
 
-			cout << "hits: " << parameters[p].first << endl;
-			cout << "Returns a list of strings with numbers from 1 to limit: " << parameters[p].first;
+			cout << "Returns a list of strings with numbers from 1 to limit: [";
 			for (std::vector<string>::iterator it = parameters[p].second.begin(); it != parameters[p].second.end(); ++it)
-				cout << ' ' << *it;
-			cout << endl;
-			
-			// return fizzbuzz as json list of string
-			session->close(200, "successful operation fizzbuzz", {{"Connection", "close"}, { "Content-Type", "application/json" }});
+				cout << ',' << *it;
+			cout << "]" << endl;
 		}
+		
+		// return fizzbuzz as json list of string
+		session->close(200, "successful operation fizzbuzz", {{"Connection", "close"}, {"Content-Type", "application/json"}});
 	}
 };
 
