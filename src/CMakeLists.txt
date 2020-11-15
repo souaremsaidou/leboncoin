@@ -1,5 +1,5 @@
 # Now simply link against gtest or gtest_main as needed. Eg
-add_executable(server main.cpp)
+add_executable(server main.cpp helpers.hpp helpers.cpp server.hpp server.cpp api.hpp api.cpp)
 
 # contains an "external" library we will link to
 add_subdirectory(fizzbuzz)
