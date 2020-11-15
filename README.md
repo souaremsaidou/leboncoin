@@ -1,4 +1,4 @@
-# Write a C++ fizz-buzz REST server
+# A C++ fizz-buzz REST server [![Build Status](https://travis-ci.org/souaremsaidou/leboncoin.svg?branch=main)](https://travis-ci.org/souaremsaidou/leboncoin)
 ## Motivation
 The original fizz-buzz consists in writing all numbers from 1 to 100, and just replacing all multiples of 3 by "fizz", all multiples of 5 by "buzz", and all multiples of 15 by "fizzbuzz". The output would look like this: "1,2,fizz,4,buzz,fizz,7,8,fizz,buzz,11,fizz,13,14,fizzbuzz,16,...".
 
