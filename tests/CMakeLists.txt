@@ -1,4 +1,4 @@
-include(fetch_git_repo.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/fetch_git_repo.cmake)
 
 fetch_git_repo(
   googletest
@@ -29,22 +29,29 @@ if(MSVC)
   endforeach()
 endif()
 
-add_executable(fizzbuzz_test "")
+list(APPEND _tests test_fizzbuzz test_api test_helpers test_server)
+foreach(_test IN LISTS _tests)
+  add_executable(${_test} "")
+  target_sources(${_test}
+    PRIVATE
+      ${_test}.cpp
+    )
 
-target_sources(fizzbuzz_test
-  PRIVATE
-  fizzbuzz.cpp
-  )
+  target_compile_options(${_test}
+    PRIVATE
+      ${flags}
+    )
 
-target_link_libraries(fizzbuzz_test
-  PRIVATE
-    fizzbuzz
-    gtest_main
-  )
+  target_link_libraries(${_test}
+    PRIVATE
+      server
+      fizzbuzz
+      gtest_main
+      gcov
+    )
 
-enable_testing()
-
-add_test(
-  NAME google_test
-  COMMAND $<TARGET_FILE:fizzbuzz_test>
-  )
+  add_test(
+    NAME ${_test}_unit
+    COMMAND $<TARGET_FILE:${_test}>
+    )
+endforeach()

@@ -1,20 +1,29 @@
 cmake_minimum_required(VERSION 3.0.0)
-project(server VERSION 0.1.0)
+project(WebServer VERSION 0.1.0)
 
-########################
-# Build Options
-########################
-
-########################
-# Configuration
-########################
+message( "                                                              " )
+message( "##############################################################" )
+message( "#                                                            #" )
+message( "#  leboncoin is MIT License                                  #" )
+message( "#  Copyright (c) 2020 souare.saidou@gmail.com                #" )
+message( "#                                                            #" )
+message( "##############################################################" )
+message( "                                                              " )
 
 set( CMAKE_CXX_STANDARD 14 )
 
-set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake" )
+option(BUILD_COVERAGE "Build with Code-Coverage" OFF)
+list(APPEND flags "-fPIC" "-Wall")
+if(BUILD_COVERAGE)
+  if(NOT WIN32)
+    list(APPEND flags "-g" "-O0" "-Wall" "-fprofile-arcs" "-ftest-coverage")
+  endif()
+endif()
+
+set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/modules/" )
 
 # Download and unpack restbed at configure time
-configure_file(CMakeLists.txt.in restbed-download/CMakeLists.txt)
+configure_file("${PROJECT_SOURCE_DIR}/cmake/CMakeLists.txt.in" restbed-download/CMakeLists.txt)
 execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
   RESULT_VARIABLE result
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/restbed-download )
@@ -66,7 +75,7 @@ include_directories({PQXX_INCLUDE_DIRECTORIES})
 ########################
 # Configure RapidJSON
 ########################
-include(rapidjson_fetch_git_repo.cmake)
+include("${PROJECT_SOURCE_DIR}/cmake/rapidjson_fetch_git_repo.cmake")
 rapidjson_fetch_git_repo(
   rapidjson
   ${CMAKE_BINARY_DIR}/_rapidjson_deps
@@ -84,6 +93,10 @@ include(GNUInstallDirs)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR})
+
+if(BUILD_COVERAGE)
+  set(CMAKE_CXX_OUTPUT_EXTENSION_REPLACE ON)
+endif()
 
 # defines targets and sources
 add_subdirectory(src)

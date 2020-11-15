@@ -1,6 +1,7 @@
 dist: xenial
 
 language: cpp
+cache: ccache
 
 matrix:
   include:
@@ -21,13 +22,18 @@ before_script:
   - sudo apt-get -y install libpqxx-dev libpq-dev postgresql-server-dev-all libboost-all-dev
   - mkdir build
   - cd build
-  - cmake ..
+  - cmake -DBUILD_COVERAGE=ON ..
 
-script: make -j3 && make test
+script: make -j3 && make test -j3
 
+after_success:
+  - cd ..
+  - ls -la
+  - pip install --user cpp-coveralls    
+  - coveralls --root . --build-root build/ --gcov-options '\-lp' -e build/Testing/ -e build/restbed-src/ -e build/restbed-download/ -e build/restbed-build/ -e build/_rapidjson_deps/ -e build/_deps/ -e build/CMakeFiles/    
 notifications:
   recipients:
-    - souare.saidou@gmail.com
+    - souaremsaidou@gmail.com
   email:
     on_success: change
     on_failure: always

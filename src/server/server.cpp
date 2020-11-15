@@ -47,10 +47,7 @@ void Server::start() {
          << "/ (Press CTRL+C to quit)\n";
   });
 
-  auto signal_handler = [this](const int signo) {
-    fprintf(stderr, "Shut the service down");
-    _service.stop();
-  };
+  auto signal_handler = [this](const int signo) { _service.stop(); };
   // Set a handler for the SIGINT system signal number.
   _service.set_signal_handler(SIGINT, signal_handler);
   // Set a handler for the SIGTERM system signal number.
@@ -60,9 +57,10 @@ void Server::start() {
   _service.start(_settings);
 }
 
-void Server::stop() {
-  cout << "Stopping Fizzbuzz web server" << endl;
-  _service.stop();
-}
+void Server::stop() { _service.stop(); }
 
-Server::~Server() { _worker->join(); }
+Server::~Server() {
+  _worker->join();
+  stop();
+  cout << "Server shutting down..." << endl;
+}

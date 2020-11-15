@@ -31,7 +31,6 @@ using restbed::Service;
 using restbed::Session;
 using restbed::Settings;
 using restbed::Uri;
-using namespace pqxx;
 
 std::mutex mtx;
 std::unordered_map<Parameters, std::pair<unsigned int, std::vector<string>>>
@@ -82,7 +81,7 @@ void StatisticsResource::GET_method_handler(
           {{"Connection", "close"}, {"Content-Type", "application/json"}});
     } else {
       session->close(
-          200, fmt_err("successful operation empty result"),
+          200, fmt_err("successful operation, but empty result"),
           {{"Connection", "close"}, {"Content-Type", "application/json"}});
     }
   }
@@ -108,15 +107,11 @@ void FizzbuzzResource::GET_method_handler(
   const std::string str1 = request->get_query_parameter("str1");
   const std::string str2 = request->get_query_parameter("str2");
 
-  /**
-   * Process the received information here
-   */
-
   // Check query parameters validity
   if (f(int1, 0) || int1 == 0) {
     session->close(
         400, fmt_err("Invalid query parameter int1 supplied, int1 must be "
-                     "greater than zero)"),
+                     "an integer greater than zero"),
         {{"Connection", "close"}});
     return;
   }
@@ -124,15 +119,15 @@ void FizzbuzzResource::GET_method_handler(
   if (f(int2, 0) || int2 == 0) {
     session->close(
         400, fmt_err("Invalid query parameter int2 supplied, int2 must be "
-                     "greater than zero"),
+                     "an integer greater than zero"),
         {{"Connection", "close"}});
     return;
   }
 
-  if (f(int2, int1)) {
+  if (f(int2, int1) || int2 == int1) {
     session->close(
         400, fmt_err("Invalid query parameter int2 supplied, int2 must be "
-                     "greather than int1"),
+                     "an integer greather than int1"),
         {{"Connection", "close"}});
     return;
   }
@@ -140,7 +135,7 @@ void FizzbuzzResource::GET_method_handler(
   if (f(limit, 0) || limit == 0) {
     session->close(400,
                    fmt_err("Invalid query parameter limit supplied, limit must "
-                           "be greater than zero"),
+                           "be an integer greater than zero"),
                    {{"Connection", "close"}});
     return;
   }
@@ -148,7 +143,7 @@ void FizzbuzzResource::GET_method_handler(
   if (f(limit, int2)) {
     session->close(400,
                    fmt_err("Invalid query parameter limit supplied, limit must "
-                           "be greater than int2"),
+                           "be an integer greater than int2"),
                    {{"Connection", "close"}});
     return;
   }
@@ -174,9 +169,7 @@ void FizzbuzzResource::GET_method_handler(
   Parameters p{int1, int2, limit, str1, str2};
   {
     std::lock_guard<std::mutex> lck(mtx);
-    if (parameters.count(p) >
-        0) // it parameters already used then increment hits
-    {
+    if (parameters.count(p) > 0) {
       parameters[p].first++;
     } else {
       parameters[p] =

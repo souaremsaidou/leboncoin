@@ -1,15 +1,19 @@
-# Now simply link against gtest or gtest_main as needed. Eg
-add_executable(server main.cpp helpers.hpp helpers.cpp server.hpp server.cpp api.hpp api.cpp)
+set(CMAKE_INCLUDE_CURRENT_DIR_IN_INTERFACE ON)
 
-# contains an "external" library we will link to
 add_subdirectory(fizzbuzz)
+add_subdirectory(server)
 
-target_link_libraries(server
+add_executable(${PROJECT_NAME} main.cpp)
+target_compile_options(${PROJECT_NAME}
 	PRIVATE
-		restbed-shared 
-		${CMAKE_THREAD_LIBS_INIT} 
-		${PostgreSQL_LIBRARIES} 
-		${PQXX_LIBRARIES} 
-		fizzbuzz
-		Boost::program_options
+		${flags}
+	)
+
+set_property( TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 14 )
+set_property( TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD_REQUIRED ON )
+set_target_properties( ${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME} )
+
+target_link_libraries(${PROJECT_NAME}
+	PRIVATE
+		server
 	)

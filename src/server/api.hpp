@@ -1,6 +1,7 @@
 #pragma once
 
 // System Includes
+#include <memory>
 #include <mutex> // std::mutex, std::lock_guard
 #include <unordered_map>
 

@@ -10,7 +10,7 @@
 
 // External Includes
 
-// fmt
+// formatters
 std::string fmt_err(const std::string &err_msg);
 
 std::string fmt_max_hits(int max_hits);

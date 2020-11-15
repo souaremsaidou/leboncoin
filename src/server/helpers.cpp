@@ -68,9 +68,9 @@ bool Parameters::operator==(const Parameters &rhs) const {
          str1 == rhs.str1 && str2 == rhs.str2;
 }
 
-//
+// debug purpose only
 ostream &operator<<(ostream &os, const Parameters &p) {
-  os << "[int1=" << p.int1 << ",int2=" << p.int2 << ",str1=" << p.str1
-     << ",str2=" << p.str2 << "]";
+  os << "(int1=" << p.int1 << ",int2=" << p.int2 << ",str1=" << p.str1
+     << ",str2=" << p.str2 << ")";
   return os;
 }

@@ -61,14 +61,13 @@ int main(int ac, char *av[]) {
     }
 
     if (vm.count("version")) {
-      cout << "Fizzbuzz web server, version 1.0\n";
+      cout << "Fizzbuzz web server, version 1.0" << std::endl;
       return 0;
     }
 
     if (!vm.count("dbname") && !vm.count("user") && !vm.count("password") &&
         !vm.count("hostaddr") && !vm.count("hostport")) {
-      cout << "db config failed." << std::endl;
-      return 1;
+      cout << "db config ignored!" << std::endl;
     } else {
       cout << "db config is done." << std::endl;
     }
@@ -83,7 +82,5 @@ int main(int ac, char *av[]) {
 
   Server server(host, port);
 
-  // db();
-  // server.stop();
   return EXIT_SUCCESS;
 }
