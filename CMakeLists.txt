@@ -63,6 +63,23 @@ include_directories({PostgreSQL_INCLUDE_DIRS})
 find_package(PQXX REQUIRED)
 include_directories({PQXX_INCLUDE_DIRECTORIES})
 
+########################
+# Configure RapidJSON
+########################
+include(rapidjson_fetch_git_repo.cmake)
+rapidjson_fetch_git_repo(
+  rapidjson
+  ${CMAKE_BINARY_DIR}/_rapidjson_deps
+  https://github.com/Tencent/rapidjson.git #https://github.com/google/googletest.git
+  v1.1.0 #release-1.8.0
+)
+
+# Add rapidjson directly to our build.
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/_rapidjson_deps/rapidjson-src/include/)
+
+########################
+# Configure GNUInstallDirs
+########################
 include(GNUInstallDirs)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR})

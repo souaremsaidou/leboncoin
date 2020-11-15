@@ -1,27 +1,27 @@
 // System Includes
-#include <sys/types.h>
-#include <unistd.h>
 #include <algorithm>
 #include <csignal>
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <mutex>  // std::mutex, std::lock_guard
+#include <mutex> // std::mutex, std::lock_guard
 #include <sstream>
 #include <string>
-#include <thread>  // std::thread
+#include <sys/types.h>
+#include <thread> // std::thread
+#include <unistd.h>
 #include <unordered_map>
-#include <utility>  // std::pair, std::make_pair
+#include <utility> // std::pair, std::make_pair
 //#include <stdexcept>      // std::logic_error
 #include <chrono>
 #include <fstream>
 #include <functional>
 #include <iterator>
+
 // Project Includes
 #include "fizzbuzz.hpp"
 
 // External Includes
-//#include <catch.hpp>
 #include <corvusoft/restbed/byte.hpp>
 #include <corvusoft/restbed/request.hpp>
 #include <corvusoft/restbed/resource.hpp>
@@ -31,13 +31,18 @@
 #include <corvusoft/restbed/status_code.hpp>
 #include <corvusoft/restbed/uri.hpp>
 #include <pqxx/pqxx>
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
+using namespace rapidjson;
 
-#include <boost/program_options.hpp>  // boost::program_options
+#include <boost/program_options.hpp> // boost::program_options
 
 // System Namespaces
 using std::multimap;
 using std::string;
 using std::thread;
+using std::chrono::seconds;
 
 // Project Namespaces
 using restbed::Bytes;
@@ -51,15 +56,48 @@ using restbed::Uri;
 
 // External Namespaces
 using namespace std;
-using std::chrono::seconds;
 using namespace pqxx;
-
 namespace po = boost::program_options;
 
-template <class T>
-inline void hash_combine(std::size_t &s, const T &v) {
-  std::hash<T> h;
-  s ^= h(v) + 0x9e3779b9 + (s << 6) + (s >> 2);
+// JSON
+std::string fmt_err(const std::string &err_msg) {
+  StringBuffer s;
+  Writer<StringBuffer> writer(s);
+
+  writer.StartObject();
+  writer.Key("err_msg");
+  writer.String(err_msg.c_str());
+  writer.EndObject();
+
+  return s.GetString();
+}
+
+std::string fmt_max_hits(int max_hits) {
+  StringBuffer s;
+  Writer<StringBuffer> writer(s);
+
+  writer.StartObject();
+  writer.Key("max_hits");
+  writer.Uint(max_hits);
+  writer.EndObject();
+
+  return s.GetString();
+}
+
+std::string fmt_arr(std::vector<std::string> &values) {
+  StringBuffer s;
+  Writer<StringBuffer> writer(s);
+
+  writer.StartObject();
+  writer.Key("values");
+  writer.StartArray();
+  for (std::vector<string>::iterator it = values.begin(); it != values.end();
+       ++it)
+    writer.String(it->c_str());
+  writer.EndArray();
+  writer.EndObject();
+
+  return s.GetString();
 }
 
 struct Parameters {
@@ -78,15 +116,23 @@ struct Parameters {
   friend ostream &operator<<(ostream &os, const Parameters &p);
 };
 
+// log putpose
 ostream &operator<<(ostream &os, const Parameters &p) {
   os << "[int1=" << p.int1 << ",int2=" << p.int2 << ",str1=" << p.str1
      << ",str2=" << p.str2 << "]";
   return os;
 }
 
+/*
+ * create an std::unordered_map with user defined key
+ */
+template <class T> inline void hash_combine(std::size_t &s, const T &v) {
+  std::hash<T> h;
+  s ^= h(v) + 0x9e3779b9 + (s << 6) + (s >> 2);
+}
+
 namespace std {
-template <>
-struct hash<Parameters> {
+template <> struct hash<Parameters> {
   std::size_t operator()(const Parameters &p) const {
     std::size_t res = 0;
     hash_combine(res, p.int1);
@@ -97,10 +143,9 @@ struct hash<Parameters> {
     return res;
   }
 };
-}  // namespace std
-
+} // namespace std
 std::mutex mtx;
-std::unordered_map<Parameters, std::pair<int, std::vector<string>>> parameters;
+std::unordered_map<Parameters, std::pair<unsigned int, std::vector<string>>> parameters;
 
 // std::less
 template <typename A, typename B, typename U = std::less<>>
@@ -110,12 +155,12 @@ bool f(A a, B b, U u = U()) {
 
 // resource
 class StatisticsResource : public restbed::Resource {
- public:
+public:
   StatisticsResource() {
     this->set_path("/statistics/");
-    this->set_method_handler(
-        "GET", std::bind(&StatisticsResource::GET_method_handler, this,
-                         std::placeholders::_1));
+    this->set_method_handler("GET",
+                             std::bind(&StatisticsResource::GET_method_handler,
+                                       this, std::placeholders::_1));
   }
 
   virtual ~StatisticsResource() {}
@@ -123,7 +168,7 @@ class StatisticsResource : public restbed::Resource {
   void GET_method_handler(const std::shared_ptr<restbed::Session> session) {
     // typedef
     using query_parameters_type = std::multimap<std::string, std::string>;
-    using value_type = std::pair<int, std::vector<string>>;
+    using value_type = std::pair<unsigned int, std::vector<string>>;
     using result_type = std::unordered_map<Parameters, value_type>::iterator;
 
     const auto request = session->get_request();
@@ -131,8 +176,9 @@ class StatisticsResource : public restbed::Resource {
     // Getting the query params
     query_parameters_type query_parameters = request->get_query_parameters();
     if (query_parameters.size()) {
-      session->close(400, "no query parameters allowed",
-                     {{"Connection", "close"}});
+      session->close(
+          400, fmt_err("no query parameters allowed"),
+          {{"Connection", "close"}, {"Content-Type", "application/json"}});
       return;
     }
 
@@ -148,15 +194,12 @@ class StatisticsResource : public restbed::Resource {
 
       // check if iterator is valid
       if (result != parameters.end()) {
-        // print maximum hits
-        cout << "the most frequent request has been " << result->first
-             << " -- hits: " << result->second.first << endl;
         session->close(
-            200, "successful operation",
+            200, fmt_max_hits(result->second.first),
             {{"Connection", "close"}, {"Content-Type", "application/json"}});
       } else {
         session->close(
-            200, "successful operation empty result",
+            200, fmt_err("successful operation empty result"),
             {{"Connection", "close"}, {"Content-Type", "application/json"}});
       }
     }
@@ -164,12 +207,12 @@ class StatisticsResource : public restbed::Resource {
 };
 
 class FizzbuzzResource : public restbed::Resource {
- public:
+public:
   FizzbuzzResource() {
     this->set_path("/fizzbuzz/");
-    this->set_method_handler(
-        "GET", std::bind(&FizzbuzzResource::GET_method_handler, this,
-                         std::placeholders::_1));
+    this->set_method_handler("GET",
+                             std::bind(&FizzbuzzResource::GET_method_handler,
+                                       this, std::placeholders::_1));
   }
 
   virtual ~FizzbuzzResource() {}
@@ -190,83 +233,79 @@ class FizzbuzzResource : public restbed::Resource {
 
     // Check query parameters validity
     if (f(int1, 0) || int1 == 0) {
-      session->close(400,
-                     "Invalid query parameter int1 supplied, int1 must be "
-                     "greater than zero",
-                     {{"Connection", "close"}});
+      session->close(
+          400, fmt_err("Invalid query parameter int1 supplied, int1 must be "
+                       "greater than zero)"),
+          {{"Connection", "close"}});
       return;
     }
 
     if (f(int2, 0) || int2 == 0) {
-      session->close(400,
-                     "Invalid query parameter int2 supplied, int2 must be "
-                     "greater than zero",
-                     {{"Connection", "close"}});
+      session->close(
+          400, fmt_err("Invalid query parameter int2 supplied, int2 must be "
+                       "greater than zero"),
+          {{"Connection", "close"}});
       return;
     }
 
     if (f(int2, int1)) {
-      session->close(400,
-                     "Invalid query parameter int2 supplied, int2 must be "
-                     "greather than int1",
-                     {{"Connection", "close"}});
+      session->close(
+          400, fmt_err("Invalid query parameter int2 supplied, int2 must be "
+                       "greather than int1"),
+          {{"Connection", "close"}});
       return;
     }
 
     if (f(limit, 0) || limit == 0) {
-      session->close(400,
-                     "Invalid query parameter limit supplied, limit must "
-                     "be greater than zero",
-                     {{"Connection", "close"}});
+      session->close(
+          400, fmt_err("Invalid query parameter limit supplied, limit must "
+                       "be greater than zero"),
+          {{"Connection", "close"}});
       return;
     }
 
     if (f(limit, int2)) {
-      session->close(400,
-                     "Invalid query parameter limit supplied, limit must "
-                     "be greater than int2",
-                     {{"Connection", "close"}});
+      session->close(
+          400, fmt_err("Invalid query parameter limit supplied, limit must "
+                       "be greater than int2"),
+          {{"Connection", "close"}});
       return;
     }
 
     if (str1.empty()) {
       session->close(
-          400, "Invalid query parameter str1 supplied, str1 must not be empty",
+          400,
+          fmt_err(
+              "Invalid query parameter str1 supplied, str1 must not be empty"),
           {{"Connection", "close"}});
       return;
     }
 
     if (str2.empty()) {
       session->close(
-          400, "Invalid query parameter str2 supplied, str2 must not be empty",
+          400,
+          fmt_err(
+              "Invalid query parameter str2 supplied, str2 must not be empty"),
           {{"Connection", "close"}});
       return;
     }
 
-    std::vector<std::string> values;
+    Parameters p{int1, int2, limit, str1, str2};
     {
       std::lock_guard<std::mutex> lck(mtx);
-      Parameters p{int1, int2, limit, str1, str2};
       if (parameters.count(p) >
-          0)  // it parameters already used then increment hits
+          0) // it parameters already used then increment hits
       {
         parameters[p].first++;
-        values = parameters[p].second;
       } else {
         parameters[p] =
             std::make_pair(1, fizzbuzz(int1, int2, limit, str1, str2));
       }
-
-      cout << "Returns a list of strings with numbers from 1 to limit: [";
-      for (std::vector<string>::iterator it = parameters[p].second.begin();
-           it != parameters[p].second.end(); ++it)
-        cout << ',' << *it;
-      cout << "]" << endl;
     }
 
     // return fizzbuzz as json list of string
     session->close(
-        200, "successful operation fizzbuzz",
+        200, fmt_arr(parameters[p].second),
         {{"Connection", "close"}, {"Content-Type", "application/json"}});
   }
 };
@@ -294,7 +333,7 @@ class Server {
   // requests.
   const int _port;
 
- public:
+public:
   Server(const std::string &host, int port) : _host(host), _port(port) {
     _worker = make_shared<thread>([=]() { start(); });
   }
@@ -343,8 +382,7 @@ class Server {
 
 void db() {
   try {
-    connection C(
-        "dbname = testdb user = postgres password = cohondob \
+    connection C("dbname = testdb user = postgres password = cohondob \
       hostaddr = 127.0.0.1 port = 5432");
     if (C.is_open()) {
       cout << "Opened database successfully: " << C.dbname() << endl;
@@ -375,10 +413,10 @@ int main(int ac, char *av[]) {
         "set the server port number");
 
     po::options_description hidden("db configuration");
-    hidden.add_options()("dbname", po::value<string>(), "set dbname")(
-        "user", po::value<string>(), "set user")(
-        "password", po::value<string>(), "set password")(
-        "hostaddr", po::value<string>(), "set host address")(
+    hidden.add_options()("dbname", po::value<string>(),
+                         "set dbname")("user", po::value<string>(), "set user")(
+        "password", po::value<string>(),
+        "set password")("hostaddr", po::value<string>(), "set host address")(
         "hostport", po::value<string>(), "set host port");
 
     po::options_description cmdline_options;
